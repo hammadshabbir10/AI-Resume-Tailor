@@ -40,30 +40,6 @@ A Next.js application that allows users to summarize and translate blogs using A
 - **Database**: MongoDB Atlas, Supabase
 - **Deployment**: Vercel
 
-## Project Structure
-
-```
-assignment-2/
-├── components/
-│   ├── Auth/           # Authentication components
-│   ├── Blog/           # Blog display components
-│   ├── AgentSteps/     # Agent workflow components
-│   └── UI/             # Reusable UI components
-├── pages/
-│   ├── api/            # API routes
-│   ├── auth/           # Authentication pages
-│   └── dashboard/      # User dashboard pages
-├── public/
-│   └── bloggers/       # Blogger profile images
-├── lib/
-│   ├── mongodb.ts      # MongoDB connection
-│   ├── supabase.ts     # Supabase client
-│   ├── urduDictionary.ts # Urdu translation logic
-│   ├── scrape.ts       # Web scraping utilities
-│   └── summarize.ts    # AI summarization logic
-└── styles/
-    └── globals.css     # Global styles
-```
 
 ## Getting Started
 
@@ -98,7 +74,6 @@ assignment-2/
 - [ ] Urdu translation
 - [ ] Database integration
 - [ ] User dashboard
-- [ ] Favorites system
 
 ## Deployment
 
