@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
+'use client';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface Blog {
   id: string;
@@ -12,25 +13,30 @@ interface Blog {
 export default function MyBlogs() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function fetchBlogs() {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/getBlogs");
-        if (!res.ok) throw new Error("Failed to fetch blogs");
-        const data = await res.json();
-        setBlogs(data.blogs || []);
-      } catch (err: any) {
-        setError(err.message || "Error fetching blogs");
-      } finally {
-        setLoading(false);
-      }
+    const savedBlogs = localStorage.getItem('myBlogs');
+    if (savedBlogs) {
+      setBlogs(JSON.parse(savedBlogs));
     }
-    fetchBlogs();
+    setLoading(false);
   }, []);
+
+  const deleteBlog = (id: string) => {
+    const updated = blogs.filter(blog => blog.id !== id);
+    setBlogs(updated);
+    localStorage.setItem('myBlogs', JSON.stringify(updated));
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Date not available';
+      return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
+    } catch {
+      return 'Date not available';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-blue-50 py-12 px-4">
@@ -41,16 +47,21 @@ export default function MyBlogs() {
         </div>
         {loading ? (
           <div className="text-center text-blue-600 py-12 text-lg font-semibold">Loading blogs...</div>
-        ) : error ? (
-          <div className="text-center text-red-600 py-12">{error}</div>
         ) : blogs.length === 0 ? (
           <div className="text-center text-gray-500 py-12">No blogs found. Start summarizing to see your blogs here!</div>
         ) : (
           <div className="space-y-8">
             {blogs.map(blog => (
-              <div key={blog.id} className="bg-white rounded-2xl shadow p-6">
+              <div key={blog.id} className="bg-white rounded-2xl shadow p-6 relative">
+                <button
+                  onClick={() => deleteBlog(blog.id)}
+                  className="absolute top-4 right-4 text-red-500 hover:text-red-700 font-bold text-lg"
+                  title="Delete blog"
+                >
+                  ×
+                </button>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400">{new Date(blog.createdAt).toLocaleString()}</span>
+                  <span className="text-xs text-gray-400">{formatDate(blog.createdAt)}</span>
                   <span className="text-blue-500 font-semibold text-xs">Blog ID: {blog.id}</span>
                 </div>
                 <div className="mb-3">
@@ -72,4 +83,4 @@ export default function MyBlogs() {
       </div>
     </div>
   );
-} 
+}

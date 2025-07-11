@@ -35,28 +35,33 @@ export default function Dashboard() {
       return;
     }
 
-    try {
-        // Translate via API
-        const urduRes = await fetch("/api/urduDictionary", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: summaryText }),
-        });
-        const urduData = await urduRes.json();
-        setUrdu(urduData.urdu);
-        setStep(3);
-      
-        // Save all together in MongoDB
-        await fetch('/api/saveBlog', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ blogText: text, summary: summaryText, urdu: urduData.urdu }),
-        });
-      } catch (err) {
-        console.error("Error during translation or saving:", err);
-        setUrdu("Error: Could not translate summary.");
-        return;
-      }
+    const urduRes = await fetch("/api/urduDictionary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: summaryText }),
+      });
+      const urduData = await urduRes.json();
+      urduText = urduData.urdu;
+      setUrdu(urduText);
+      setStep(3);
+
+     try{ // Save to localStorage
+      const newBlog = {
+        id: Date.now().toString(),
+        blogText: text,
+        summary: summaryText,
+        urdu: urduText,
+        createdAt: new Date().toISOString(),
+      };
+      const savedBlogs = JSON.parse(localStorage.getItem('myBlogs') || '[]');
+      savedBlogs.unshift(newBlog);
+      localStorage.setItem('myBlogs', JSON.stringify(savedBlogs));
+      setSaved(true);
+    } catch (err) {
+      console.error("Error during translation:", err);
+      setUrdu("Error: Could not translate summary.");
+      return;
+    }
 
     // Save summary to Supabase
     await fetch('/api/saveSummary', {
