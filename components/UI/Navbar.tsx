@@ -16,7 +16,7 @@ export default function Navbar() {
         <Link href="/dashboard">
           <Button variant="ghost" className="text-blue-700 font-semibold">Dashboard</Button>
         </Link>
-        <Link href="dashboards/my-blogs">
+        <Link href="dashboard/my-blogs">
           <Button variant="ghost" className="text-blue-700 font-semibold">My Blogs</Button>
         </Link>
       </div>

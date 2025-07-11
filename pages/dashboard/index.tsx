@@ -17,7 +17,7 @@ export default function Dashboard() {
     setStep(1);
 
     let summaryText = "";
-
+    let urduText= "";
     try {
       // Summarize via API
       const sumRes = await fetch("/api/summarize", {
@@ -36,20 +36,27 @@ export default function Dashboard() {
     }
 
     try {
-      // Translate via API
-      const urduRes = await fetch("/api/urduDictionary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: summaryText }),
-      });
-      const urduData = await urduRes.json();
-      setUrdu(urduData.urdu);
-      setStep(3);
-    } catch (err) {
-      console.error("Error during translation:", err);
-      setUrdu("Error: Could not translate summary.");
-      return;
-    }
+        // Translate via API
+        const urduRes = await fetch("/api/urduDictionary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: summaryText }),
+        });
+        const urduData = await urduRes.json();
+        setUrdu(urduData.urdu);
+        setStep(3);
+      
+        // Save all together in MongoDB
+        await fetch('/api/saveBlog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ blogText: text, summary: summaryText, urdu: urduData.urdu }),
+        });
+      } catch (err) {
+        console.error("Error during translation or saving:", err);
+        setUrdu("Error: Could not translate summary.");
+        return;
+      }
 
     // Save summary to Supabase
     await fetch('/api/saveSummary', {
@@ -64,6 +71,7 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blogText: text }), // <--- use the function argument, not state
     });
+   
   };
   return (
     <div className="max-w-2xl mx-auto py-12">
