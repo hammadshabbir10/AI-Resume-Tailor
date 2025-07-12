@@ -3,7 +3,8 @@ import BlogInput from "../../Blog/BlogInput";
 import AgentStepper from "../../AgentSteps/AgentStepper";
 import { summarizeText } from "../api/summarize";
 //import { translateToUrdu } from "../api/urduDictionary";
-
+import Navbar from '../../components/UI/Navbar';
+import Footer from '../../components/UI/Footer';
 export default function Dashboard() {
   const [step, setStep] = useState(0); // 0: Input, 1: Summarize, 2: Translate, 3: Save
   const [blogText, setBlogText] = useState("");
@@ -79,6 +80,8 @@ export default function Dashboard() {
    
   };
   return (
+    <>
+    <Navbar/>
     <div className="max-w-2xl mx-auto py-12">
       <h1 className="text-2xl font-bold mb-6 text-center">Blog Summarizer Workflow</h1>
       <AgentStepper step={step} />
@@ -98,5 +101,7 @@ export default function Dashboard() {
         </div>
       )}
     </div>
+    <Footer />
+    </>
   );
 }

@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
+import Navbar from '../../components/UI/Navbar';
+import Footer from '../../components/UI/Footer';
 interface Blog {
   id: string;
   blogText: string;
@@ -39,6 +40,8 @@ export default function MyBlogs() {
   };
 
   return (
+    <>
+    <Navbar/>
     <div className="min-h-screen bg-blue-50 py-12 px-4">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
@@ -82,5 +85,7 @@ export default function MyBlogs() {
         )}
       </div>
     </div>
+    <Footer />
+    </>
   );
-}
+}   

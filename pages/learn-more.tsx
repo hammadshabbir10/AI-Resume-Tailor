@@ -14,6 +14,8 @@ const bloggers = [
 
 export default function LearnMore() {
   return (
+    <>
+     <Navbar   />
     <div className="bg-blue-50 min-h-screen w-full flex flex-col">
       <main className="flex-1 container mx-auto px-4 py-12">
         <h1 className="text-4xl font-bold text-blue-800 mb-6 text-center">Learn More</h1>
@@ -50,8 +52,9 @@ export default function LearnMore() {
             ))}
           </div>
         </section>
-      </main>
-     
+      </main>  
     </div>
+    <Footer />
+    </>
   );
 }
