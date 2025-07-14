@@ -24,6 +24,9 @@ export default function Navbar() {
         <Link href="/dashboard/my-blogs">
           <Button variant="ghost" className="text-blue-700 font-semibold">My Blogs</Button>
         </Link>
+        <Link href="/Feedback">
+          <Button variant="ghost" className="text-blue-700 font-semibold">Feedback</Button>
+        </Link>
       </div>
       {/* Hamburger for Mobile */}
       <button
@@ -61,6 +64,15 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
             >
               My Blogs
+            </Button>
+          </Link>
+          <Link href="/Feedback" className="w-full">
+            <Button
+              variant="ghost"
+              className="w-full text-blue-700 font-semibold justify-start"
+              onClick={() => setMenuOpen(false)}
+            >
+              Feedback
             </Button>
           </Link>
         </div>

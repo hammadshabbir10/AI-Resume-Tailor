@@ -79,6 +79,15 @@ export default function Dashboard() {
     });
    
   };
+
+  const handleReset = () => {
+    setStep(0);
+    setBlogText("");
+    setSummary("");
+    setUrdu("");
+    setSaving(false);
+    setSaved(false);
+  };
   return (
     <>
     <Navbar/>
@@ -98,6 +107,14 @@ export default function Dashboard() {
           </div>
           {saving && <p>Saving to database...</p>}
           {saved && <p className="text-green-600">Saved successfully!</p>}
+          {step === 3 && (
+            <button
+              className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-lg transition-colors duration-200"
+              onClick={handleReset}
+            >
+              Enter a Blog Again
+            </button>
+          )}
         </div>
       )}
     </div>
