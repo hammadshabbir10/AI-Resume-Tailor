@@ -7,7 +7,8 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <nav className="bg-white shadow-sm py-4 px-6 flex items-center justify-between relative">
+
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm py-4 px-6 flex items-center justify-between relative">
       <div className="flex items-center space-x-2">
         <span className="text-2xl font-extrabold tracking-widest bg-gradient-to-r from-blue-500 via-blue-700 to-blue-400 bg-clip-text text-transparent animate-gradient-x">
           NE<span className="text-blue-500">X</span>IUM
@@ -78,6 +79,7 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+  
   );
 }
 
