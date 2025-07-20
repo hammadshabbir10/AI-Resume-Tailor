@@ -10,7 +10,7 @@ AI Resume Tailor empowers users to:
 - Track and store ATS scores and tailored resume generations securely.
 
 ## ✨ Features
-- **ATS Checker:** Analyze your resume for ATS-friendliness, including section completeness, keyword usage, and formatting.
+- **ATS Checker:** Analyze your resume for ATS-friendliness, including section completeness, keyword usage, and formatting so on.
 - **AI-Powered Tailoring:** Instantly tailor your resume to any job title using advanced AI models.
 - **PDF Generation:** Download your tailored resume as a high-quality PDF.
 - **User Dashboard:** Manage uploaded resumes and view analysis history.
