@@ -360,6 +360,9 @@ const Dashboard: React.FC = () => {
       .then(data => setCreatedResumes(data.resumes || []));
   };
 
+  // Only show dashboard-created resumes (from ownresume collection)
+  const dashboardResumes = createdResumes.filter(r => r.resumeText && !r.aiGenerated);
+
   return (
     <>
       <Head>
@@ -627,7 +630,7 @@ const Dashboard: React.FC = () => {
             My Resumes
           </h2>
           
-          {createdResumes.length === 0 ? (
+          {dashboardResumes.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,7 +651,7 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {createdResumes.filter(r => r._id).map((resume, idx) => (
+              {dashboardResumes.filter(r => r._id).map((resume, idx) => (
                 <div key={idx} className="group bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-6 relative hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
                   <button
                     className="absolute top-3 right-3 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
