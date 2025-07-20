@@ -1,89 +1,67 @@
-# Assignment 2: Blog Summariser
+# AI Resume Tailor
 
-A Next.js application that allows users to summarize and translate blogs using AI-powered tools.
+AI Resume Tailor is a modern web application that leverages artificial intelligence to help users optimize and tailor their resumes for specific job titles. The platform provides ATS (Applicant Tracking System) compatibility checks, personalized resume tailoring, and professional PDF generation, making it easier for job seekers to stand out in today's competitive job market.
 
-## Features
+## 🚀 Project Overview
+AI Resume Tailor empowers users to:
+- Analyze their resumes for ATS compatibility and receive actionable feedback.
+- Tailor their resumes to specific job titles using AI, ensuring relevance and impact.
+- Generate and download professionally formatted PDF resumes.
+- Track and store ATS scores and tailored resume generations securely.
 
-### 🎨 Landing Page
-- White background with horizontal blogger images
-- Blue color scheme and modern UI design
-- Featured blogs display with summarize/translate options
-- How it works section with step-by-step guide
+## ✨ Features
+- **ATS Checker:** Analyze your resume for ATS-friendliness, including section completeness, keyword usage, and formatting.
+- **AI-Powered Tailoring:** Instantly tailor your resume to any job title using advanced AI models.
+- **PDF Generation:** Download your tailored resume as a high-quality PDF.
+- **User Dashboard:** Manage uploaded resumes and view analysis history.
+- **Supabase Integration:** Securely store ATS scores and tailored resume data.
+- **Modern UI:** Clean, responsive, and user-friendly interface.
 
-### 🔐 Authentication
-- User signup with email verification
-- Login functionality
-- Protected routes for authenticated users
+## 🛠️ Technology Stack
+- **Frontend:** React, Next.js, Tailwind CSS
+- **Backend:** Next.js API Routes
+- **AI Integration:** Google Gemini API (Generative AI)
+- **PDF Processing:** pdf-lib, pdf-parse
+- **Database:** Supabase (PostgreSQL)
 
-### 📝 Blog Management
-- Display demo blogs with AI summarization
-- Enter custom blog URLs or text
-- Agent-based workflow:
-  - Agent 1: Enter blog content
-  - Agent 2: AI summarization
-  - Agent 3: Translate to Urdu
-  - Agent 4: Save to database
-
-### 💾 Database Integration
-- **MongoDB Atlas**: Store full blog text
-- **Supabase**: Store summaries and user data
-
-### 👤 User Features
-- My Blogs page (user's saved blogs)
-- Favorites page (favorite blog summaries)
-- User profile management
-
-## Tech Stack
-
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **UI Components**: ShadCN UI
-- **Database**: MongoDB Atlas, Supabase
-- **Deployment**: Vercel
-
-
-## Getting Started
-
-1. **Install dependencies:**
+## 📝 Getting Started
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/hammadshabbir10/AI-Resume-Tailor.git
+   cd AI-Resume-Tailor/assignment-2
+   ```
+2. **Install dependencies:**
    ```bash
    npm install
    ```
-
-2. **Set up environment variables:**
-   Create a `.env.local` file with:
-   ```
-   MONGODB_URI=your_mongodb_atlas_connection_string
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
-
-3. **Run the development server:**
+3. **Set up environment variables:**
+   - Create a `.env.local` file and add your Supabase and Gemini API keys:
+     ```env
+     SUPABASE_URL=your_supabase_url
+     SUPABASE_ANON_KEY=your_supabase_anon_key
+     GEMINI_API_KEY=your_gemini_api_key
+     ```
+4. **Run the development server:**
    ```bash
    npm run dev
    ```
+5. **Open the app:**
+   Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-4. **Open your browser:**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+## 💡 Usage
+- **Upload your resume** and check its ATS compatibility.
+- **Enter a job title** to tailor your resume for a specific position.
+- **Download your tailored resume** as a PDF.
+- **Review feedback and suggestions** to further improve your resume.
 
-## Features in Development
+## 🤝 Contributing
+Contributions are welcome! Please open an issue or submit a pull request for improvements or bug fixes.
 
-- [x] Landing page with blogger images
-- [x] Basic UI components (Button, Card)
-- [x] Demo blogs display
-- [ ] Authentication system
-- [ ] Blog summarization logic
-- [ ] Urdu translation
-- [ ] Database integration
-- [ ] User dashboard
+## 📧 Contact
+For questions, feedback, or support, please contact:
+- [Hammad Shabbir](mailto:hammadshabbir10@gmail.com)
+- [GitHub Issues](https://github.com/hammadshabbir10/AI-Resume-Tailor/issues)
 
-## Deployment
+---
 
-The application is configured for deployment on Vercel. Simply connect your GitHub repository and deploy with the following settings:
-
-- **Framework Preset**: Next.js
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-
-## Contributing
-
-This is an assignment project for the Nexium Internship program. All code follows Next.js and TypeScript best practices.
-
+**AI Resume Tailor** – Empowering your job search with intelligent resume optimization!

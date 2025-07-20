@@ -6,9 +6,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
   try {
-    const { to, from, subject, message } = req.body;
-    if (!to || !from || !subject || !message) {
+    const { to, from, subject, message, userEmail } = req.body;
+    if (!to || !from || !subject || !message || !userEmail) {
       return res.status(400).json({ error: 'Missing fields' });
+    }
+    // Only allow sending if 'from' matches the logged-in user's email
+    if (from !== userEmail) {
+      return res.status(403).json({ error: 'You can only send feedback from your own account email.' });
     }
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -46,4 +50,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('Email sending error:', err);
     return res.status(500).json({ error: 'Failed to send email' });
   }
-} 
+}
