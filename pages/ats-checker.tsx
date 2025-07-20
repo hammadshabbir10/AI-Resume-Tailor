@@ -36,20 +36,30 @@ const ATSChecker: React.FC = () => {
 
   // Simulate analysis progress
   useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
     if (loading) {
       setCurrentStep('analyzing');
-      const interval = setInterval(() => {
+      setAnalysisProgress(0);
+      interval = setInterval(() => {
         setAnalysisProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            return 100;
+          // Animate slowly to 95%, then pause
+          if (prev < 95) {
+            return Math.min(prev + Math.random() * 3 + 1, 95); // slower progress
+          } else {
+            return prev;
           }
-          return prev + Math.random() * 15;
         });
-      }, 200);
-      return () => clearInterval(interval);
+      }, 200); // slower interval
     }
+    return () => { if (interval) clearInterval(interval); };
   }, [loading]);
+
+  // Jump to 100% when analysis is done
+  useEffect(() => {
+    if (!loading && currentStep === 'results') {
+      setAnalysisProgress(100);
+    }
+  }, [loading, currentStep]);
 
   const handleCheck = async () => {
     if (!selectedPDF) return;
@@ -70,15 +80,21 @@ const ATSChecker: React.FC = () => {
       setCurrentStep('results');
       setCurrentSelectedPDF(selectedPDF);
       
-      // Save to localStorage
+      // Save to MongoDB
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
         const user = JSON.parse(userInfo);
-        localStorage.setItem(`ats_data_${user.email}`, JSON.stringify({
-          report: data,
-          selectedPDF: selectedPDF,
-          timestamp: Date.now()
-        }));
+        await fetch('/api/ats-result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: user.email,
+            cvName: selectedPDF.name,
+            atsScore: data.score,
+            report: data,
+            createdAt: new Date()
+          })
+        });
       }
     } catch (err: any) {
       setError(err.message);
@@ -339,13 +355,13 @@ const ATSChecker: React.FC = () => {
                   {/* Analysis Steps */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${
-                      analysisProgress > 20 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
+                      analysisProgress > 33 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
                     }`}>
                       <div className="flex items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                          analysisProgress > 20 ? 'bg-green-500' : 'bg-gray-300'
+                          analysisProgress > 33 ? 'bg-green-500' : 'bg-gray-300'
                         }`}>
-                          {analysisProgress > 20 ? (
+                          {analysisProgress > 33 ? (
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -353,20 +369,20 @@ const ATSChecker: React.FC = () => {
                             <span className="text-white text-xs">1</span>
                           )}
                         </div>
-                        <span className={`font-medium ${analysisProgress > 20 ? 'text-green-700' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${analysisProgress > 33 ? 'text-green-700' : 'text-gray-500'}`}>
                           Text Extraction
                         </span>
                       </div>
                     </div>
 
                     <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${
-                      analysisProgress > 50 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
+                      analysisProgress > 66 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
                     }`}>
                       <div className="flex items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                          analysisProgress > 50 ? 'bg-green-500' : 'bg-gray-300'
+                          analysisProgress > 66 ? 'bg-green-500' : 'bg-gray-300'
                         }`}>
-                          {analysisProgress > 50 ? (
+                          {analysisProgress > 66 ? (
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -374,20 +390,20 @@ const ATSChecker: React.FC = () => {
                             <span className="text-white text-xs">2</span>
                           )}
                         </div>
-                        <span className={`font-medium ${analysisProgress > 50 ? 'text-green-700' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${analysisProgress > 66 ? 'text-green-700' : 'text-gray-500'}`}>
                           ATS Analysis
                         </span>
                       </div>
                     </div>
 
                     <div className={`p-4 rounded-lg border-2 transition-all duration-500 ${
-                      analysisProgress > 80 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
+                      analysisProgress === 100 ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'
                     }`}>
                       <div className="flex items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                          analysisProgress > 80 ? 'bg-green-500' : 'bg-gray-300'
+                          analysisProgress === 100 ? 'bg-green-500' : 'bg-gray-300'
                         }`}>
-                          {analysisProgress > 80 ? (
+                          {analysisProgress === 100 ? (
                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
@@ -395,7 +411,7 @@ const ATSChecker: React.FC = () => {
                             <span className="text-white text-xs">3</span>
                           )}
                         </div>
-                        <span className={`font-medium ${analysisProgress > 80 ? 'text-green-700' : 'text-gray-500'}`}>
+                        <span className={`font-medium ${analysisProgress === 100 ? 'text-green-700' : 'text-gray-500'}`}>
                           Generating Report
                         </span>
                       </div>

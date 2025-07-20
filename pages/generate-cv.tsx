@@ -156,16 +156,22 @@ export default function GenerateCV() {
         setTailoredCV(result.tailoredCV);
         setCurrentJobTitle(jobTitle.trim());
         setShowPreview(true);
-        
-        // Save to localStorage
+
+        // Save to MongoDB
         const userInfo = localStorage.getItem('userInfo');
         if (userInfo) {
           const user = JSON.parse(userInfo);
-          localStorage.setItem(`cv_data_${user.email}`, JSON.stringify({
-            tailoredCV: result.tailoredCV,
-            jobTitle: jobTitle.trim(),
-            timestamp: Date.now()
-          }));
+          await fetch('/api/generated-resume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userEmail: user.email,
+              jobTitle: jobTitle.trim(),
+              candidateName: `${user.firstname || ''} ${user.lastname || ''}`.trim(),
+              resumeText: result.tailoredCV,
+              createdAt: new Date()
+            })
+          });
         }
       } else {
         alert(result.error || 'Failed to generate tailored CV');

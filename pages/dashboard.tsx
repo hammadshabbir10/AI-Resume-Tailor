@@ -9,6 +9,9 @@ import Footer from '../components/Footer';
 const Dashboard: React.FC = () => {
   const router = useRouter();
   const [userName, setUserName] = useState('');
+  const [resumesCreated, setResumesCreated] = useState(0);
+  const [pdfsUploaded, setPdfsUploaded] = useState(0);
+  const [totalActivities, setTotalActivities] = useState(0);
 
   type Activity = {
     type: 'login' | 'upload';
@@ -66,22 +69,19 @@ const Dashboard: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [profile, setProfile] = useState({ name: '', email: '', phone: '' });
 
-  // Fetch resumes and PDFs on mount
   useEffect(() => {
-    const userInfo = localStorage.getItem('userInfo');
-    if (userInfo) {
-      const user = JSON.parse(userInfo);
-      setCreatedResumes(JSON.parse(localStorage.getItem(`resumes_${user.email}`) || '[]'));
-      setUploadedPDFs(JSON.parse(localStorage.getItem(`pdfs_${user.email}`) || '[]'));
-    }
-  }, [showResumeModal]);
-
-  useEffect(() => {
-    // Get user info from localStorage (you can replace this with proper auth later)
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
       const user = JSON.parse(userInfo);
       setUserName(`${user.firstname} ${user.lastname}`);
+      // Fetch dashboard stats from API
+      fetch(`/api/dashboard-stats?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => {
+          setResumesCreated(data.resumesCreated || 0);
+          setPdfsUploaded(data.pdfsUploaded || 0);
+          setTotalActivities(data.totalActivities || 0);
+        });
     }
   }, []);
 
@@ -98,9 +98,29 @@ const Dashboard: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const user = JSON.parse(userInfo);
+      fetch(`/api/user-resumes?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => setCreatedResumes(data.resumes || []));
+    }
+  }, [showResumeModal]);
+
   function getTimeAgo(timestamp: number): string {
     const now = Date.now();
     const diff = Math.floor((now - timestamp) / 1000);
+    if (diff < 60) return `${diff} seconds ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
+  }
+
+  function getTimeAgoFromDate(dateString: string | Date): string {
+    const now = Date.now();
+    const created = new Date(dateString).getTime();
+    const diff = Math.floor((now - created) / 1000);
     if (diff < 60) return `${diff} seconds ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
@@ -217,29 +237,36 @@ const Dashboard: React.FC = () => {
     const userInfo = localStorage.getItem('userInfo');
     if (!userInfo) return;
     const user = JSON.parse(userInfo);
-    // Save resume to localStorage
-    const resumes = JSON.parse(localStorage.getItem(`resumes_${user.email}`) || '[]');
-    const newResume = { ...resumeForm, createdAt: Date.now() };
-    const updatedResumes = [newResume, ...resumes];
-    localStorage.setItem(`resumes_${user.email}`, JSON.stringify(updatedResumes));
-    setCreatedResumes(updatedResumes);
-    // Add activity
-    const activities: Activity[] = JSON.parse(localStorage.getItem(`activity_${user.email}`) || '[]');
-    const newActivity: Activity = {
-      type: 'upload',
-      message: 'Created a new resume',
-      detail: resumeForm.name,
-      timestamp: Date.now()
-    };
-    const updatedActivities = [newActivity, ...activities];
-    localStorage.setItem(`activity_${user.email}`, JSON.stringify(updatedActivities));
-    setRecentActivities(updatedActivities.map((a: Activity) => ({ ...a, timeAgo: getTimeAgo(a.timestamp) })));
-    setShowResumeModal(false);
-    setResumeForm({
-      name: '', email: '', phone: '', city: '', country: '', linkedin: '', github: '', summary: '', skills: '',
-      education: [ { ...emptyEducation } ], experience: [ { ...emptyExperience } ], projects: [{ ...emptyProject }]
+    fetch('/api/ownresume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userEmail: user.email,
+        jobTitle: resumeForm.summary, // or another field for job title
+        candidateName: resumeForm.name,
+        resumeText: resumeForm, // Save as object
+        createdAt: new Date()
+      })
+    }).then(() => {
+      setShowResumeModal(false);
+      setResumeForm({
+        name: '', email: '', phone: '', city: '', country: '', linkedin: '', github: '', summary: '', skills: '',
+        education: [ { ...emptyEducation } ], experience: [ { ...emptyExperience } ], projects: [{ ...emptyProject }]
+      });
+      // Refetch resumes after creation
+      fetch(`/api/user-resumes?email=${encodeURIComponent(user.email)}`)
+        .then(res => res.json())
+        .then(data => setCreatedResumes(data.resumes || []));
+      // Add to recent activity
+      setRecentActivities(prev => ([{
+        type: 'upload',
+        message: 'Created a new resume',
+        detail: resumeForm.name,
+        timestamp: Date.now(),
+        timeAgo: 'just now'
+      }, ...prev]));
+      alert('Resume created!');
     });
-    alert('Resume created!');
   }
 
   useEffect(() => {
@@ -270,7 +297,12 @@ const Dashboard: React.FC = () => {
         const data = await res.json();
         const link = document.createElement('a');
         link.href = 'data:application/pdf;base64,' + data.base64;
-        link.download = `${resume.name.replace(/\s+/g, '_')}_Resume.pdf`;
+        const name =
+        (typeof resume.name === 'string' && resume.name.trim()) ||
+        (typeof resume.candidateName === 'string' && resume.candidateName.trim()) ||
+        (resume.resumeText && typeof resume.resumeText.name === 'string' && resume.resumeText.name.trim()) ||
+        'Resume';
+      link.download = `${name.replace(/\s+/g, '_')}_Resume.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -298,6 +330,35 @@ const Dashboard: React.FC = () => {
     if (currentLine) lines.push(currentLine);
     return lines;
   }
+
+  let parsedResume: any = null;
+  if (showResumeView !== null && createdResumes[showResumeView]) {
+    const resume = createdResumes[showResumeView];
+    parsedResume = resume;
+    if (resume && typeof resume.resumeText === 'string') {
+      try {
+        parsedResume = JSON.parse(resume.resumeText);
+      } catch {
+        parsedResume = resume;
+      }
+    } else if (resume && typeof resume.resumeText === 'object') {
+      parsedResume = resume.resumeText;
+    }
+  }
+  const education = parsedResume && Array.isArray(parsedResume.education) ? parsedResume.education : [];
+  const projects = parsedResume && Array.isArray(parsedResume.projects) ? parsedResume.projects : [];
+  const experience = parsedResume && Array.isArray(parsedResume.experience) ? parsedResume.experience : [];
+
+  const handleDeleteResume = async (resumeId: string) => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (!userInfo) return;
+    const user = JSON.parse(userInfo);
+    await fetch(`/api/ownresume?id=${resumeId}`, { method: 'DELETE' });
+    // Refetch resumes
+    fetch(`/api/user-resumes?email=${encodeURIComponent(user.email)}`)
+      .then(res => res.json())
+      .then(data => setCreatedResumes(data.resumes || []));
+  };
 
   return (
     <>
@@ -341,8 +402,8 @@ const Dashboard: React.FC = () => {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-green-700">{createdResumes.length}</div>
-                    <div className="text-green-600 font-medium">Resumes Created</div>
+                    <div className="text-3xl font-bold text-green-700">{resumesCreated}</div>
+                    <div className="text-green-600 font-medium">Resumes Built</div>
                   </div>
                 </div>
               </div>
@@ -355,8 +416,8 @@ const Dashboard: React.FC = () => {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-blue-700">{uploadedPDFs.length}</div>
-                    <div className="text-blue-600 font-medium">PDFs Uploaded</div>
+                    <div className="text-3xl font-bold text-blue-700">{pdfsUploaded}</div>
+                    <div className="text-blue-600 font-medium">ATS Checked</div>
                   </div>
                 </div>
               </div>
@@ -369,7 +430,7 @@ const Dashboard: React.FC = () => {
                     </svg>
                   </div>
                   <div>
-                    <div className="text-3xl font-bold text-purple-700">{recentActivities.length}</div>
+                    <div className="text-3xl font-bold text-purple-700">{totalActivities}</div>
                     <div className="text-purple-600 font-medium">Total Activities</div>
                   </div>
                 </div>
@@ -587,19 +648,12 @@ const Dashboard: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {createdResumes.map((resume, idx) => (
+              {createdResumes.filter(r => r._id).map((resume, idx) => (
                 <div key={idx} className="group bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-6 relative hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]">
                   <button
                     className="absolute top-3 right-3 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     title="Delete created resume"
-                    onClick={() => {
-                      const userInfo = localStorage.getItem('userInfo');
-                      if (!userInfo) return;
-                      const user = JSON.parse(userInfo);
-                      const updatedResumes = createdResumes.filter((_, i) => i !== idx);
-                      localStorage.setItem(`resumes_${user.email}`, JSON.stringify(updatedResumes));
-                      setCreatedResumes(updatedResumes);
-                    }}
+                    onClick={() => handleDeleteResume(resume._id)}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -612,8 +666,10 @@ const Dashboard: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <h3 className="font-semibold text-gray-800 text-lg mb-1">{resume.name}</h3>
-                    <p className="text-sm text-gray-500">Created {getTimeAgo(resume.createdAt)}</p>
+                    <h3 className="font-semibold text-gray-800 text-lg mb-1">
+                      {(parsedResume && parsedResume.name) || resume.candidateName || 'Resume'}
+                    </h3>
+                    <p className="text-sm text-gray-500">Created {getTimeAgoFromDate(resume.createdAt)}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -800,44 +856,52 @@ const Dashboard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-3xl max-h-[80vh] overflow-y-auto relative">
             <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl" onClick={() => setShowResumeView(null)}>&times;</button>
-            <h2 className="text-2xl font-bold text-green-800 mb-4">{createdResumes[showResumeView].name}</h2>
-            <div className="mb-2"><b>Email:</b> {createdResumes[showResumeView].email}</div>
-            <div className="mb-2"><b>Phone:</b> {createdResumes[showResumeView].phone}</div>
-            <div className="mb-2"><b>City:</b> {createdResumes[showResumeView].city}</div>
-            <div className="mb-2"><b>Country:</b> {createdResumes[showResumeView].country}</div>
-            {createdResumes[showResumeView].linkedin && <div className="mb-2"><b>LinkedIn:</b> {createdResumes[showResumeView].linkedin}</div>}
-            {createdResumes[showResumeView].github && <div className="mb-2"><b>GitHub:</b> {createdResumes[showResumeView].github}</div>}
-            <div className="mb-2"><b>Summary:</b> {createdResumes[showResumeView].summary}</div>
-            <div className="mb-2"><b>Skills:</b> {createdResumes[showResumeView].skills}</div>
+            <div className="mb-4 text-2xl font-bold text-green-800">
+              {parsedResume?.name?.trim() || createdResumes[showResumeView].candidateName?.trim() || 'Resume'}
+            </div>
+            <div className="mb-2"><b>Email:</b> {parsedResume.email || ''}</div>
+            <div className="mb-2"><b>Phone:</b> {parsedResume.phone || ''}</div>
+            <div className="mb-2"><b>City:</b> {parsedResume.city || ''}</div>
+            <div className="mb-2"><b>Country:</b> {parsedResume.country || ''}</div>
+            {parsedResume.linkedin && <div className="mb-2"><b>LinkedIn:</b> {parsedResume.linkedin}</div>}
+            {parsedResume.github && <div className="mb-2"><b>GitHub:</b> {parsedResume.github}</div>}
+            <div className="mb-2"><b>Summary:</b> {parsedResume.summary || ''}</div>
+            <div className="mb-2"><b>Skills:</b> {parsedResume.skills || ''}</div>
             <div className="mb-2"><b>Education:</b>
               <ul className="list-disc ml-6">
-                {createdResumes[showResumeView].education.map((edu: any, i: number) => (
+                {education.length > 0 ? education.map((edu: any, i: number) => (
                   <li key={i}>
                     <b>{edu.degree}</b> at <b>{edu.school}</b>, {edu.city}, {edu.country} <br />
                     Graduation: {edu.graduationDate} {edu.cgpa && <>| CGPA: {edu.cgpa}</>} {edu.coursework && <>| Coursework: {edu.coursework}</>}
                   </li>
-                ))}
+                )) : (
+                  <li>No education details available.</li>
+                )}
               </ul>
             </div>
             <div className="mb-2"><b>Projects:</b>
               <ul className="list-disc ml-6">
-                {createdResumes[showResumeView].projects && createdResumes[showResumeView].projects.map((proj: any, i: number) => (
+                {projects.length > 0 ? projects.map((proj: any, i: number) => (
                   <li key={i}>
                     <b>{proj.title}</b>{proj.technologies && <> | <span className="italic">{proj.technologies}</span></>}<br />
                     {proj.description}
                   </li>
-                ))}
+                )) : (
+                  <li>No project details available.</li>
+                )}
               </ul>
             </div>
             <div className="mb-2"><b>Experience:</b>
               <ul className="list-disc ml-6">
-                {createdResumes[showResumeView].experience.map((exp: any, i: number) => (
+                {experience.length > 0 ? experience.map((exp: any, i: number) => (
                   <li key={i}>
                     <b>{exp.role}</b> at <b>{exp.company}</b>, {exp.city}, {exp.country} <br />
                     {exp.startDate} - {exp.endDate} <br />
                     {exp.description}
                   </li>
-                ))}
+                )) : (
+                  <li>No experience details available.</li>
+                )}
               </ul>
             </div>
           </div>

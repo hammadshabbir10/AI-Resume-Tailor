@@ -5,6 +5,11 @@ async function getProfessionalResumeText(resume: any): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('Gemini API key not set');
 
+  // Before using .map on resume.education, resume.projects, resume.experience, default to [] if undefined
+  const educationArr = Array.isArray(resume.education) ? resume.education : [];
+  const projectsArr = Array.isArray(resume.projects) ? resume.projects : [];
+  const experienceArr = Array.isArray(resume.experience) ? resume.experience : [];
+
   const prompt = `
 Create a professional resume for the following person. Use clear sections for Summary, Skills, Education, Projects, and Experience, and add a line (--------------------) to separate each section. Use all provided fields. Do not invent content.
 
@@ -24,7 +29,7 @@ Skills:
 ${resume.skills}
 --------------------
 Education:
-${resume.education.map((edu: any, i: number) => 
+${educationArr.map((edu: any, i: number) => 
   `Degree: ${edu.degree}
   School: ${edu.school}
   City: ${edu.city}
@@ -35,14 +40,14 @@ ${resume.education.map((edu: any, i: number) =>
 ).join('\n--------------------\n')}
 --------------------
 Projects:
-${resume.projects && resume.projects.length > 0 ? resume.projects.map((proj: any, i: number) => 
+${projectsArr.length > 0 ? projectsArr.map((proj: any, i: number) => 
   `Project Title: ${proj.title}
   Technologies Used: ${proj.technologies}
   Description: ${proj.description}`
 ).join('\n--------------------\n') : 'None'}
 --------------------
 Experience:
-${resume.experience.map((exp: any, i: number) => 
+${experienceArr.map((exp: any, i: number) => 
   `Role: ${exp.role}
   Company: ${exp.company}
   City: ${exp.city}
@@ -70,95 +75,98 @@ ${resume.experience.map((exp: any, i: number) =>
 }
 
 async function generatePdfFromText(text: string): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([595, 842]); // A4 size
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontSize = 14;
-  const headingSize = 18;
-  const maxWidth = 495; // 595 - 2*50 margin
+  try {
+    const pdfDoc = await PDFDocument.create();
+    let page = pdfDoc.addPage([595, 842]); // A4 size
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const fontSize = 14;
+    const headingSize = 18;
+    const maxWidth = 495; // 595 - 2*50 margin
 
-  const wrapText = (text: string, fontObj: any, size: number) => {
-    const words = text.split(' ');
-    let lines: string[] = [];
-    let currentLine = '';
-    for (let word of words) {
-      const testLine = currentLine ? currentLine + ' ' + word : word;
-      const width = fontObj.widthOfTextAtSize(testLine, size);
-      if (width > maxWidth && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = testLine;
+    const wrapText = (text: string, fontObj: any, size: number) => {
+      const words = (text || '').split(' ');
+      let lines: string[] = [];
+      let currentLine = '';
+      for (let word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word;
+        const width = fontObj.widthOfTextAtSize(testLine, size);
+        if (width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
       }
-    }
-    if (currentLine) lines.push(currentLine);
-    return lines;
-  };
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    };
 
-  let y = 800;
-  const lines = text.split('\n');
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) {
-      y -= 12;
-      continue;
-    }
-    // Headings
-    if (line.startsWith('### ')) {
-      const heading = line.replace(/^### /, '');
-      page.drawText(heading, { x: 50, y, size: headingSize, font: boldFont, color: rgb(0, 0, 0) });
-      y -= 28;
-      continue;
-    }
-    // Bold
-    if (line.startsWith('**') && line.endsWith('**')) {
-      const boldText = line.replace(/\*\*/g, '');
-      const wrapped = wrapText(boldText, boldFont, fontSize);
-      for (const w of wrapped) {
-        page.drawText(w, { x: 50, y, size: fontSize, font: boldFont, color: rgb(0, 0, 0) });
+    let y = 800;
+    const lines = (text || '').split('\n');
+    for (let line of lines) {
+      line = (line || '').trim();
+      if (!line) {
+        y -= 12;
+        continue;
+      }
+      // Headings
+      if (line.startsWith('### ')) {
+        const heading = line.replace(/^### /, '');
+        page.drawText(heading, { x: 50, y, size: headingSize, font: boldFont, color: rgb(0, 0, 0) });
+        y -= 28;
+        continue;
+      }
+      // Bold
+      if (line.startsWith('**') && line.endsWith('**')) {
+        const boldText = line.replace(/\*\*/g, '');
+        const wrapped = wrapText(boldText, boldFont, fontSize);
+        for (const w of wrapped) {
+          page.drawText(w, { x: 50, y, size: fontSize, font: boldFont, color: rgb(0, 0, 0) });
+          y -= 20;
+        }
+        continue;
+      }
+      // Section separator
+      if (line.startsWith('---------------------------------------------------------------------')) {
+        y -= 8;
+        page.drawText('---------------------------------------------------------------------', { x: 50, y, size: fontSize, font, color: rgb(0.5, 0.5, 0.5) });
+        y -= 32;
+        continue;
+      }
+      // Normal text, with bold inside
+      let match;
+      const boldRegex = /\*\*(.*?)\*\*/g;
+      let normalLines = wrapText(line, font, fontSize);
+      for (const normalLine of normalLines) {
+        let x = 50;
+        let lastIndex = 0;
+        while ((match = boldRegex.exec(normalLine)) !== null) {
+          const before = normalLine.substring(lastIndex, match.index);
+          if (before) {
+            page.drawText(before, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
+            x += font.widthOfTextAtSize(before, fontSize);
+          }
+          page.drawText(match[1], { x, y, size: fontSize, font: boldFont, color: rgb(0, 0, 0) });
+          x += boldFont.widthOfTextAtSize(match[1], fontSize);
+          lastIndex = match.index + match[0].length;
+        }
+        const after = normalLine.substring(lastIndex);
+        if (after) {
+          page.drawText(after, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
+        }
         y -= 20;
       }
-      continue;
-    }
-    // Section separator
-    if (line.startsWith('---------------------------------------------------------------------')) {
-      y -= 8;
-      page.drawText('---------------------------------------------------------------------', { x: 50, y, size: fontSize, font, color: rgb(0.5, 0.5, 0.5) });
-      y -= 32;
-      continue;
-    }
-    // Normal text, with bold inside
-    let cursor = 0;
-    let match;
-    const boldRegex = /\*\*(.*?)\*\*/g;
-    let lastX = 50;
-    let normalLines = wrapText(line, font, fontSize);
-    for (const normalLine of normalLines) {
-      let x = 50;
-      let lastIndex = 0;
-      while ((match = boldRegex.exec(normalLine)) !== null) {
-        const before = normalLine.substring(lastIndex, match.index);
-        if (before) {
-          page.drawText(before, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
-          x += font.widthOfTextAtSize(before, fontSize);
-        }
-        page.drawText(match[1], { x, y, size: fontSize, font: boldFont, color: rgb(0, 0, 0) });
-        x += boldFont.widthOfTextAtSize(match[1], fontSize);
-        lastIndex = match.index + match[0].length;
+      if (y < 50) {
+        page = pdfDoc.addPage([595, 842]);
+        y = 800;
       }
-      const after = normalLine.substring(lastIndex);
-      if (after) {
-        page.drawText(after, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
-      }
-      y -= 20;
     }
-    if (y < 50) {
-      page = pdfDoc.addPage([595, 842]);
-      y = 800;
-    }
+    return await pdfDoc.save();
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    throw new Error('Failed to generate PDF from text');
   }
-  return await pdfDoc.save();
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -168,10 +176,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       console.log('Received resume:', req.body);
       const resume = req.body;
-      const resumeText = await getProfessionalResumeText(resume);
+      let resumeObj = resume;
+      if (typeof resume.resumeText === 'string') {
+        try {
+          resumeObj = JSON.parse(resume.resumeText);
+        } catch {
+          resumeObj = resume;
+        }
+      } else if (typeof resume.resumeText === 'object') {
+        resumeObj = resume.resumeText;
+      }
+      // Use resumeObj for all fields
+      const resumeText = await getProfessionalResumeText(resumeObj);
       console.log('Gemini resume text:', resumeText);
       const pdfBytes = await generatePdfFromText(resumeText);
       const base64 = Buffer.from(pdfBytes).toString('base64');
+      // Debug logging for file name generation
+      const jobTitle =
+        (resumeObj && typeof resumeObj.jobTitle === 'string' && resumeObj.jobTitle.trim()) ||
+        (resume && typeof resume.jobTitle === 'string' && resume.jobTitle.trim()) ||
+        '';
+      const name =
+        (resumeObj && typeof resumeObj.name === 'string' && resumeObj.name.trim()) ||
+        (resume && typeof resume.candidateName === 'string' && resume.candidateName.trim()) ||
+        (resume && typeof resume.name === 'string' && resume.name.trim()) ||
+        '';
+      console.log('For file name generation:');
+      console.log('resumeObj:', resumeObj);
+      console.log('resume:', resume);
+      console.log('jobTitle:', jobTitle, 'name:', name, 'types:', typeof jobTitle, typeof name);
+      let safeJobTitle = '';
+      let safeName = '';
+      try {
+        safeJobTitle = typeof jobTitle === 'string' ? jobTitle.replace(/\s+/g, '-').toLowerCase() : '';
+      } catch (e) {
+        console.error('Error in safeJobTitle.replace:', e, jobTitle);
+      }
+      try {
+        safeName = typeof name === 'string' ? name.replace(/\s+/g, '-').toLowerCase() : '';
+      } catch (e) {
+        console.error('Error in safeName.replace:', e, name);
+      }
+      const fileName = `resume-${safeJobTitle || safeName || 'download'}`;
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}.pdf"`);
       res.status(200).json({ base64 });
     } catch (err) {
       console.error('Error in generateResumePdf:', err);
