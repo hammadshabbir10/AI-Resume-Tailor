@@ -15,6 +15,7 @@ export default function GenerateCV() {
   const [userName, setUserName] = useState('');
   const router = useRouter();
   const [jobTitle, setJobTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tailoredCV, setTailoredCV] = useState<string>('');
@@ -110,8 +111,8 @@ export default function GenerateCV() {
   };
 
   const generateTailoredCV = async () => {
-    if (!jobTitle.trim() || !selectedFile) {
-      alert('Please enter a job title and select a CV file');
+    if (!jobTitle.trim() || !description.trim() || !selectedFile) {
+      alert('Please enter a job title, description, and select a CV file');
       return;
     }
 
@@ -139,6 +140,7 @@ export default function GenerateCV() {
         },
         body: JSON.stringify({
           jobTitle: jobTitle.trim(),
+          description: description.trim(),
           cvText: cvText
         }),
       });
@@ -237,6 +239,7 @@ export default function GenerateCV() {
         const data = JSON.parse(savedCVData);
         setTailoredCV(data.tailoredCV || '');
         setJobTitle(data.jobTitle || '');
+        setDescription(data.description || ''); // Load description
         setCurrentJobTitle(data.jobTitle || '');
         setShowPreview(!!data.tailoredCV);
       }
@@ -268,12 +271,11 @@ export default function GenerateCV() {
           {/* Input Section */}
           <div className="bg-white rounded-2xl shadow-xl p-8 mb-8">
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Job Title Input */}
+              {/* Job Title and Description Input */}
               <div className="space-y-4">
                 <h2 className="text-2xl font-semibold text-green-800 mb-6">
                   Job Information
                 </h2>
-                
                 <div>
                   <label className="block text-sm font-medium text-green-700 mb-2">
                     Job Title *
@@ -286,12 +288,22 @@ export default function GenerateCV() {
                     className="w-full px-4 py-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
                   />
                 </div>
-
+                <div>
+                  <label className="block text-sm font-medium text-green-700 mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Paste the job description or write what the job requires..."
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 min-h-[120px]"
+                  />
+                </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <h3 className="font-medium text-green-800 mb-2">💡 Tips for better results:</h3>
                   <ul className="text-sm text-green-700 space-y-1">
                     <li>• Be specific with the job title</li>
-                    <li>• Mention the industry or sector</li>
+                    <li>• Paste the full job description for best tailoring</li>
                   </ul>
                 </div>
               </div>
@@ -373,9 +385,9 @@ export default function GenerateCV() {
             <div className="mt-8 text-center">
               <button
                 onClick={generateTailoredCV}
-                disabled={isLoading || !jobTitle.trim() || !selectedFile}
+                disabled={isLoading || !jobTitle.trim() || !description.trim() || !selectedFile}
                 className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-200 ${
-                  isLoading || !jobTitle.trim() || !selectedFile
+                  isLoading || !jobTitle.trim() || !description.trim() || !selectedFile
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700 transform hover:scale-105'
                 }`}
@@ -415,6 +427,7 @@ export default function GenerateCV() {
                       setTailoredCV('');
                       setShowPreview(false);
                       setJobTitle('');
+                      setDescription(''); // Clear description
                       setCurrentJobTitle('');
                       setSelectedFile(null);
                     }}

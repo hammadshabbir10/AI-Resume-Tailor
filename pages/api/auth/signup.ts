@@ -68,6 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
     return res.status(201).json({ message: 'Verification code sent to email' });
   } catch (err) {
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Signup Error:', err); // Add this line
+  return res.status(500).json({ message: 'Server error' });
   }
 } 

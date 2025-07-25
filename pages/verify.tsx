@@ -55,6 +55,7 @@ const VerifyPage: React.FC = () => {
     }
   };
 
+
   return (
     <>
       <Head>
@@ -115,6 +116,7 @@ const VerifyPage: React.FC = () => {
               >
                 {loading ? 'Verifying...' : 'Verify'}
               </button>
+             
             </form>
           )}
         </div>
