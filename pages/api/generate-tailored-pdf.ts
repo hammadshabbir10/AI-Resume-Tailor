@@ -1,6 +1,30 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { supabase } from '../../lib/supabaseClient';
+import type { PDFPage, PDFFont, Color } from 'pdf-lib';
+
+function cleanResumeText(text: string): string {
+  const symbolMap: Record<string, string> = {
+    '': '📞', '': '📞', '📱': '📞',
+    '': '✉️', '✉': '✉️', '📧': '✉️',
+    '': '🔗', '🔗': '🔗', '🌐': '🔗',
+    '': '📍', '📍': '📍', '🏠': '📍',
+    '®': '(R)', '©': '(C)', '™': '(TM)',
+    '•': '•', '◦': '•', '▪': '•', '‣': '•', '⁃': '•',
+    '→': '->', '⇒': '=>', '↦': '->', '↔': '<->',
+    '✓': '[✓]', '✔': '[✓]', '☑': '[✓]',
+    '☆': '*', '★': '*', '✩': '*', '✪': '*',
+    '…': '...', '–': '-', '—': '-', '±': '+/-',
+    '': '[YouTube]', '': '[Twitter]', '': '[GitHub]'
+  };
+
+  let cleaned = text;
+  for (const [symbol, replacement] of Object.entries(symbolMap)) {
+    cleaned = cleaned.replace(new RegExp(symbol, 'g'), replacement);
+  }
+
+  return cleaned.replace(/[^\x20-\x7E\u00A0-\u00FF\u0100-\u017F\u0180-\u024F\s\.,;:!?@#\$%&\*\(\)\-_\+=\[\]\{\}\|\\'"<>\/]/g, '');
+}
 
 // Disable the default body parser for this route
 export const config = {
@@ -10,6 +34,7 @@ export const config = {
     },
   },
 };
+
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -44,30 +69,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Remove the "Tailored for:" title - start directly with content
 
     // Parse the tailored CV text and format it properly
-    const sections = tailoredCV.split('\n\n').filter((section: string) => section.trim());
+    const cleanedCV = cleanResumeText(tailoredCV);
+    const sections = cleanedCV.split('\n\n').filter((section: string) => section.trim());
     let currentPage = page;
+    let isFirstLine = true;
+    let inProjectsSection = false;
     
     for (const section of sections) {
       const lines = section.split('\n').filter((line: string) => line.trim());
-      
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
-        
-        // Check if we need a new page
         if (yPosition < margin + 50) {
-          // Add new page if needed
           currentPage = pdfDoc.addPage([595.28, 841.89]);
           yPosition = height - margin;
         }
-
-        // Determine font size and style based on content
         let currentFont = font;
         let currentSize = fontSize;
         let currentColor = rgb(0, 0, 0);
-        
-        // Check if this is a main heading (only major section headers)
+        // Main headings
         const isMainHeading = line.length < 50 && (
-          // Only the main structural sections
           /^education$/i.test(line.trim()) ||
           /^working\s+experience$/i.test(line.trim()) ||
           /^core\s+skills$/i.test(line.trim()) ||
@@ -75,198 +95,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           /^languages$/i.test(line.trim()) ||
           /^certificates$/i.test(line.trim())
         );
-        
-        // Check if this is a name line (detect common name patterns)
-        const isName = line.length < 50 && 
-          !line.includes('@') && 
-          !line.includes('linkedin.com') && 
-          !line.includes('|') && 
-          !line.includes('•') && 
-          !line.includes('-') && 
-          !line.includes('Undergraduate') &&
-          !line.includes('Bachelor') &&
-          !line.includes('Master') &&
-          !line.includes('PhD') &&
-          !line.includes('Degree') &&
-          !line.includes('Diploma') &&
-          !line.includes('Certificate') &&
-          !line.includes('Experience') &&
-          !line.includes('Skills') &&
-          !line.includes('Projects') &&
-          !line.includes('Education') &&
-          !line.includes('Languages') &&
-          !line.includes('Certificates') &&
-          // Check if it looks like a name (contains letters and spaces, no numbers)
-          /^[A-Za-z\s]+$/.test(line.trim()) &&
-          // Must have at least 2 words (first and last name)
-          line.trim().split(/\s+/).length >= 2;
-        
-        if (isMainHeading || isName) {
+        // Detect entering/exiting Projects section
+        if (/^projects$/i.test(line.trim())) {
+          inProjectsSection = true;
+        } else if (isMainHeading && !/^projects$/i.test(line.trim())) {
+          inProjectsSection = false;
+        }
+        // Only bold the first line (name) and main headings
+        if (isFirstLine || isMainHeading) {
           currentFont = boldFont;
-          currentSize = 14;
+          currentSize = 16;
           currentColor = rgb(0, 0, 0);
-          if (isName) {
-            yPosition -= 5; // Less space before name
+          if (isFirstLine) {
+            yPosition -= 5;
           } else {
-            yPosition -= 15; // Space before main headings
+            yPosition -= 15;
+            // Add extra space after main heading
+            yPosition -= lineHeight;
           }
         }
-        
-        // Check if this is a name/title line
-        if (line.includes('@') || line.includes('linkedin.com') || line.includes('|')) {
+        // Project subheading: in Projects section, contains '|' and not a main heading
+        const isProjectSubheading = inProjectsSection && line.includes('|') && !isMainHeading;
+        if (isProjectSubheading) {
+          // Draw the project subheading (not bold)
+          wrapAndDrawText(currentPage, line, font, fontSize, currentColor, margin, width, yPosition, lineHeight);
+          yPosition -= lineHeight + 5;
+          continue;
+        }
+        // Contact info
+        if (line.includes('@') || line.includes('linkedin.com')) {
           currentSize = 11;
           currentColor = rgb(0.3, 0.3, 0.3);
         }
-        
-        // Check if this is a name line (no special characters, just name)
-        if (line.length < 30 && !line.includes('@') && !line.includes('linkedin.com') && !line.includes('|') && !line.includes('•') && !line.includes('-')) {
-          currentSize = 14;
-          currentFont = boldFont;
-          currentColor = rgb(0, 0, 0);
-          yPosition -= 15; // Extra space before name
-        }
-        
-        // Check if this is a bullet point
+        // Bullet point
         if (line.startsWith('•') || line.startsWith('-')) {
           currentSize = 11;
-          yPosition -= 8; // More space for bullet points
+          yPosition -= 8;
         }
-        
-        // Check if this is a separator line (long dashes)
+        // Separator line
         if (line.includes('--------------------------------------------------------------------------------------------------------------------------------------------------------------------')) {
-          yPosition -= 15; // Space for separators
-          continue; // Skip drawing separator lines
+          yPosition -= 15;
+          continue;
         }
-        
-        // Handle long lines by wrapping
-        if (line.length > 80) {
-          const words = line.split(' ');
-          let currentLine = '';
-          
-          for (const word of words) {
-            const testLine = currentLine ? `${currentLine} ${word}` : word;
-            const textWidth = currentFont.widthOfTextAtSize(testLine, currentSize);
-            
-            if (textWidth > width - 2 * margin) {
-              if (currentLine) {
-                // Check if we need a new page before drawing
-                if (yPosition < margin + 50) {
-                  currentPage = pdfDoc.addPage([595.28, 841.89]);
-                  yPosition = height - margin;
-                }
-                
-                currentPage.drawText(currentLine, {
-                  x: margin,
-                  y: yPosition,
-                  size: currentSize,
-                  font: currentFont,
-                  color: currentColor,
-                });
-                
-                // Add extra spacing for wrapped text
-                if (isMainHeading || isName) {
-                  yPosition -= lineHeight + 5; // Less space after main headings and name
-                } else if (currentLine.startsWith('•') || currentLine.startsWith('-')) {
-                  yPosition -= lineHeight + 2;
-                } else if (currentLine.length > 100) {
-                  yPosition -= lineHeight + 4;
-                } else if (currentLine.includes('@') || currentLine.includes('linkedin.com') || currentLine.includes('|')) {
-                  yPosition -= lineHeight + 1;
-                } else {
-                  yPosition -= lineHeight + 2;
-                }
-                currentLine = word;
-              } else {
-                // Single word is too long, draw it anyway
-                if (yPosition < margin + 50) {
-                  currentPage = pdfDoc.addPage([595.28, 841.89]);
-                  yPosition = height - margin;
-                }
-                
-                currentPage.drawText(word, {
-                  x: margin,
-                  y: yPosition,
-                  size: currentSize,
-                  font: currentFont,
-                  color: currentColor,
-                });
-                
-                // Add extra spacing for long words
-                if (isMainHeading || isName) {
-                  yPosition -= lineHeight + 5; // Less space after main headings and name
-                } else if (word.length > 100) {
-                  yPosition -= lineHeight + 4;
-                } else {
-                  yPosition -= lineHeight + 2;
-                }
-              }
-            } else {
-              currentLine = testLine;
-            }
-          }
-          
-          if (currentLine) {
-            // Check if we need a new page before drawing
-            if (yPosition < margin + 50) {
-              currentPage = pdfDoc.addPage([595.28, 841.89]);
-              yPosition = height - margin;
-            }
-            
-            currentPage.drawText(currentLine, {
-              x: margin,
-              y: yPosition,
-              size: currentSize,
-              font: currentFont,
-              color: currentColor,
-            });
-            
-            // Add extra spacing for final line
-            if (isMainHeading || isName) {
-              yPosition -= lineHeight + 5; // Less space after main headings and name
-            } else if (currentLine.startsWith('•') || currentLine.startsWith('-')) {
-              yPosition -= lineHeight + 2;
-            } else {
-              yPosition -= lineHeight + 2;
-            }
-          }
-        } else {
-          // Check if we need a new page before drawing
-          if (yPosition < margin + 50) {
-            currentPage = pdfDoc.addPage([595.28, 841.89]);
-            yPosition = height - margin;
-          }
-          
-                  // Draw the line as is
-        currentPage.drawText(line, {
-          x: margin,
-          y: yPosition,
-          size: currentSize,
-          font: currentFont,
-          color: currentColor,
-        });
-        
-        // Add extra spacing based on content type
-        if (isMainHeading || isName) {
-          yPosition -= lineHeight + 5; // Less space after main headings and name
-        } else if (line.startsWith('•') || line.startsWith('-')) {
-          yPosition -= lineHeight + 2; // Less space after bullet points
-        } else if (line.length > 100) {
-          // This is likely a paragraph/bio - add more space
-          yPosition -= lineHeight + 4;
-        } else if (line.includes('@') || line.includes('linkedin.com') || line.includes('|')) {
-          // Contact info - less space
-          yPosition -= lineHeight + 1;
-        } else {
-          yPosition -= lineHeight + 2; // Less spacing overall
+        // Draw the line with improved wrapping
+        yPosition = wrapAndDrawText(currentPage, line, currentFont, currentSize, currentColor, margin, width, yPosition, lineHeight);
+        // Add extra space after sections (but not before the very first content)
+        if ((isFirstLine || isMainHeading) && i === 0 && !isFirstLine) {
+          yPosition -= 15;
         }
-        }
-        
-                  // Add extra space after sections (but not before the very first content)
-          if ((isMainHeading || isName) && i === 0 && !isName) {
-            yPosition -= 15; // More space before first heading (but not before name)
-          }
+        isFirstLine = false;
       }
-      
       // Add more space between sections
       yPosition -= 20;
     }
@@ -301,7 +179,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error('PDF generation error:', error);
     res.status(500).json({ 
       success: false, 
-      error: `Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      error: `Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
     });
   }
+} 
+
+function wrapAndDrawText(
+  page: PDFPage,
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  color: Color,
+  margin: number,
+  pageWidth: number,
+  yPosition: number,
+  lineHeight: number
+): number {
+  const maxWidth = pageWidth - 2 * margin;
+  const words = text.split(' ');
+  let currentLine = '';
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+    if (textWidth > maxWidth && currentLine) {
+      page.drawText(currentLine, {
+        x: margin,
+        y: yPosition,
+        size: fontSize,
+        font: font,
+        color: color,
+      });
+      yPosition -= lineHeight;
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) {
+    page.drawText(currentLine, {
+      x: margin,
+      y: yPosition,
+      size: fontSize,
+      font: font,
+      color: color,
+    });
+    yPosition -= lineHeight;
+  }
+  return yPosition;
 } 
