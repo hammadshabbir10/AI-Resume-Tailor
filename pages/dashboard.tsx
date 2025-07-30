@@ -28,7 +28,8 @@ const Dashboard: React.FC = () => {
     school: '',
     city: '',
     country: '',
-    graduationDate: '',
+    startDate: '',
+    endDate: '',
     cgpa: '',
     coursework: ''
   };
@@ -217,7 +218,7 @@ const Dashboard: React.FC = () => {
       return;
     }
     for (const edu of resumeForm.education) {
-      if (!edu.degree || !edu.school || !edu.city || !edu.country || !edu.graduationDate) {
+      if (!edu.degree || !edu.school || !edu.city || !edu.country || !edu.startDate || !edu.endDate) {
         alert('Please fill all required education fields.');
         return;
       }
@@ -287,30 +288,43 @@ const Dashboard: React.FC = () => {
   };
 
   function handleDownloadResumePDF(resume: any) {
+    // Show loading state
+    const button = event?.currentTarget;
+  
     fetch('/api/generateResumePdf', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(resume),
     })
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to generate PDF');
-        const data = await res.json();
-        const link = document.createElement('a');
-        link.href = 'data:application/pdf;base64,' + data.base64;
-        const name =
-        (typeof resume.name === 'string' && resume.name.trim()) ||
-        (typeof resume.candidateName === 'string' && resume.candidateName.trim()) ||
-        (resume.resumeText && typeof resume.resumeText.name === 'string' && resume.resumeText.name.trim()) ||
-        'Resume';
-      link.download = `${name.replace(/\s+/g, '_')}_Resume.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      })
-      .catch((err) => {
-        alert('Failed to generate PDF: ' + err.message);
-      });
+    .then(async (res) => {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate PDF');
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (!data?.base64) throw new Error('No PDF data received');
+      
+      const link = document.createElement('a');
+      link.href = 'data:application/pdf;base64,' + data.base64;
+      
+      // Safer filename generation
+      const name = [resume.name, resume.candidateName, resume.resumeText?.name]
+        .find(n => typeof n === 'string' && n.trim()) || 'Resume';
+        
+      link.download = `${name.toString().replace(/[^\w\s]/g, '_')}_Resume.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      //document.body.removeChild(link);
+    })
+    .catch((err) => {
+      console.error('PDF generation error:', err);
+      alert(`Failed to generate PDF: ${err.message}\nPlease try again later.`);
+    })
+    
   }
+  
 
   function wrapText(text: string, font: any, fontSize: number, maxWidth: number) {
     const words = text.split(' ');
@@ -804,7 +818,14 @@ const Dashboard: React.FC = () => {
                       <input name="school" value={edu.school} onChange={e => handleEducationChange(idx, e)} required placeholder="University / School *" className="border rounded-lg p-2" />
                       <input name="city" value={edu.city} onChange={e => handleEducationChange(idx, e)} required placeholder="City *" className="border rounded-lg p-2" />
                       <input name="country" value={edu.country} onChange={e => handleEducationChange(idx, e)} required placeholder="Country *" className="border rounded-lg p-2" />
-                      <input name="graduationDate" type="date" value={edu.graduationDate} onChange={e => handleEducationChange(idx, e)} required placeholder="Graduation Date *" className="border rounded-lg p-2" />
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                        <input name="startDate" type="date" value={edu.startDate} onChange={e => handleEducationChange(idx, e)} required className="border rounded-lg p-2 w-full" />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+                        <input name="endDate" type="date" value={edu.endDate} onChange={e => handleEducationChange(idx, e)} required className="border rounded-lg p-2 w-full" />
+                      </div>
                       <input name="cgpa" value={edu.cgpa} onChange={e => handleEducationChange(idx, e)} placeholder="CGPA (optional)" className="border rounded-lg p-2" />
                       <input name="coursework" value={edu.coursework} onChange={e => handleEducationChange(idx, e)} placeholder="Relevant Coursework (optional)" className="border rounded-lg p-2" />
                     </div>
@@ -840,8 +861,14 @@ const Dashboard: React.FC = () => {
                       <input name="company" value={exp.company} onChange={e => handleExperienceChange(idx, e)} required placeholder="Company / Organization *" className="border rounded-lg p-2" />
                       <input name="city" value={exp.city} onChange={e => handleExperienceChange(idx, e)} required placeholder="City *" className="border rounded-lg p-2" />
                       <input name="country" value={exp.country} onChange={e => handleExperienceChange(idx, e)} required placeholder="Country *" className="border rounded-lg p-2" />
-                      <input name="startDate" type="date" value={exp.startDate} onChange={e => handleExperienceChange(idx, e)} required placeholder="Start Date *" className="border rounded-lg p-2" />
-                      <input name="endDate" type="date" value={exp.endDate} onChange={e => handleExperienceChange(idx, e)} required placeholder="End Date *" className="border rounded-lg p-2" />
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
+                        <input name="startDate" type="date" value={exp.startDate} onChange={e => handleExperienceChange(idx, e)} required className="border rounded-lg p-2 w-full" />
+                      </div>
+                      <div className="col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
+                        <input name="endDate" type="date" value={exp.endDate} onChange={e => handleExperienceChange(idx, e)} required className="border rounded-lg p-2 w-full" />
+                      </div>
                       <textarea name="description" value={exp.description} onChange={e => handleExperienceChange(idx, e)} required placeholder="Description *" className="border rounded-lg p-2 col-span-2" />
                     </div>
                   </div>
@@ -875,7 +902,7 @@ const Dashboard: React.FC = () => {
                 {education.length > 0 ? education.map((edu: any, i: number) => (
                   <li key={i}>
                     <b>{edu.degree}</b> at <b>{edu.school}</b>, {edu.city}, {edu.country} <br />
-                    Graduation: {edu.graduationDate} {edu.cgpa && <>| CGPA: {edu.cgpa}</>} {edu.coursework && <>| Coursework: {edu.coursework}</>}
+                    {edu.startDate} - {edu.endDate} {edu.cgpa && <>| CGPA: {edu.cgpa}</>} {edu.coursework && <>| Coursework: {edu.coursework}</>}
                   </li>
                 )) : (
                   <li>No education details available.</li>
